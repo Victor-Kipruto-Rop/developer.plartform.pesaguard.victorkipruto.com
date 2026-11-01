@@ -13,6 +13,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class ResendEmailConfiguration {
 
     @Bean
+    ObjectMapper objectMapper() {
+        return new ObjectMapper();
+    }
+
+    @Bean
     JavaMailSender resendJavaMailSender(
             @Value("${RESEND_API_KEY:}") String apiKey,
             @Value("${pesaguard.identity.from-email}") String fromAddress,

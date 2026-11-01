@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/errors.test.mjs"
+    "test": "node --test tests/errors.test.mjs tests/authFeedback.test.mjs tests/onboardingText.test.mjs"
   },
   "dependencies": {
     "libphonenumber-js": "^1.13.14",

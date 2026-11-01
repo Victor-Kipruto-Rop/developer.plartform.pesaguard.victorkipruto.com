@@ -4306,3 +4306,267 @@
   background: color-mix(in srgb, var(--signal-red) 9%, var(--paper-raised));
   border-color: var(--signal-red);
 }
+
+.onboarding-page {
+  background-repeat: no-repeat;
+  background-position: left top;
+  background-size: auto;
+}
+
+.onboarding-card-heading h2,
+.onboarding-stage h2,
+.onboarding-card--account .onboarding-card-heading h2,
+.onboarding-card--account .onboarding-stage h2 {
+  color: var(--ink);
+  font-size: 28px;
+  line-height: 1.25;
+}
+
+.onboarding-form .floating-group {
+  position: relative;
+  display: block;
+  min-width: 0;
+  width: 100%;
+}
+
+.onboarding-form .floating-group > input,
+.onboarding-form .floating-group > select,
+.onboarding-form .floating-group > textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 54px;
+  padding: 18px 40px 8px 39px;
+  color: var(--text);
+  background: var(--paper-raised);
+  border: 1px solid #cfd8d2;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 450;
+  outline: none;
+  transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+
+.onboarding-form .floating-group--no-search > input,
+.onboarding-form .floating-group--no-search > select,
+.onboarding-form .floating-group--no-search > textarea {
+  padding-left: 13px;
+}
+
+.onboarding-form .floating-group > textarea {
+  min-height: 112px;
+  resize: vertical;
+}
+
+.onboarding-form .floating-group > label {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 35px;
+  display: block;
+  max-width: calc(100% - 54px);
+  padding: 0 4px;
+  overflow: hidden;
+  color: var(--text-muted);
+  background: var(--paper-raised);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  transform: translateY(-50%);
+  transform-origin: left center;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: top .18s ease, color .18s ease, transform .18s ease;
+}
+
+.onboarding-form .floating-group--no-search > label {
+  left: 9px;
+}
+
+.onboarding-form .floating-group--textarea > label {
+  top: 21px;
+}
+
+.onboarding-form .floating-group > input:focus,
+.onboarding-form .floating-group > select:focus,
+.onboarding-form .floating-group > textarea:focus {
+  border-color: #00a651;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #00a651 14%, transparent);
+}
+
+.onboarding-form .floating-group:hover > label,
+.onboarding-form .floating-group:focus-within > label,
+.onboarding-form .floating-group:has(> input:not(:placeholder-shown)) > label,
+.onboarding-form .floating-group:has(> input:-webkit-autofill) > label,
+.onboarding-form .floating-group:has(> input:autofill) > label,
+.onboarding-form .floating-group:has(> select) > label,
+.onboarding-form .floating-group:has(> textarea:not(:placeholder-shown)) > label {
+  top: 0;
+  color: #00a651;
+  transform: translateY(-50%) scale(.85);
+}
+
+.onboarding-form .floating-group--textarea:hover > label,
+.onboarding-form .floating-group--textarea:focus-within > label,
+.onboarding-form .floating-group--textarea:has(> textarea:not(:placeholder-shown)) > label {
+  top: 0;
+}
+
+.onboarding-form .floating-group__search-icon {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 13px;
+  color: var(--text-faint);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.onboarding-form .floating-group--textarea .floating-group__search-icon {
+  top: 19px;
+  transform: none;
+}
+
+.onboarding-form .floating-group > .onboarding-password-toggle {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  right: 8px;
+  width: 34px;
+  height: 34px;
+  transform: translateY(-50%);
+}
+
+.onboarding-password-field {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 54px;
+  overflow: visible;
+  border: 0;
+  box-shadow: none;
+}
+
+.onboarding-password-field > input {
+  min-height: 54px !important;
+  padding-right: 46px;
+}
+
+.onboarding-page--account .onboarding-password-field:focus-within {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.onboarding-password-group {
+  gap: 6px;
+}
+
+.onboarding-form .floating-group > input[aria-invalid="true"],
+.onboarding-form .floating-group > select[aria-invalid="true"],
+.onboarding-form .floating-group > textarea[aria-invalid="true"] {
+  border-color: var(--signal-red);
+}
+
+.onboarding-form .floating-group > input[aria-invalid="true"]:focus,
+.onboarding-form .floating-group > select[aria-invalid="true"]:focus,
+.onboarding-form .floating-group > textarea[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--signal-red) 13%, transparent);
+}
+
+.onboarding-error,
+.onboarding-code-status,
+.onboarding-verification-notice,
+.onboarding-password-match,
+.onboarding-field-error {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.onboarding-error {
+  padding: 11px 13px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.onboarding-verification-notice {
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+@media (max-width: 600px) {
+  .onboarding-page {
+    padding-inline: 12px;
+  }
+
+  .onboarding-page--account {
+    height: auto !important;
+    min-height: 100svh;
+    overflow: visible !important;
+  }
+
+  .onboarding-page--account .onboarding-layout {
+    min-height: 0;
+    padding-block: 20px;
+  }
+
+  .onboarding-page--account .onboarding-card--account {
+    max-height: none;
+    padding: 22px 16px;
+    overflow: visible;
+  }
+
+  .onboarding-page--account .onboarding-form {
+    gap: 13px;
+  }
+
+  .onboarding-card-heading h2,
+  .onboarding-stage h2,
+  .onboarding-card--account .onboarding-card-heading h2,
+  .onboarding-card--account .onboarding-stage h2 {
+    font-size: 26px;
+  }
+
+  .onboarding-error,
+  .onboarding-code-status,
+  .onboarding-verification-notice {
+    width: 100%;
+    white-space: normal;
+  }
+
+  .onboarding-mfa-enrollment-details {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 360px) {
+  .onboarding-page {
+    padding-inline: 8px;
+  }
+
+  .onboarding-card--account {
+    padding-inline: 12px;
+  }
+
+  .onboarding-page--account .onboarding-card--account {
+    padding-inline: 12px;
+  }
+
+  .onboarding-form .floating-group > input,
+  .onboarding-form .floating-group > select,
+  .onboarding-form .floating-group > textarea {
+    font-size: 15px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-form .floating-group > input,
+  .onboarding-form .floating-group > select,
+  .onboarding-form .floating-group > textarea,
+  .onboarding-form .floating-group > label {
+    transition: none;
+  }
+}

@@ -1,5 +1,7 @@
 import { ValidatedForm } from "../../components/forms/ValidatedForm";
+import { FloatingField } from "../../components/forms/FloatingField";
 import { getUserMessage } from "../../lib/errors";
+import { toUppercaseOnboardingText } from "../../lib/onboardingText";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, Check, CheckCircle2, CircleHelp, Copy, Eye, EyeOff, KeyRound, LoaderCircle, LockKeyhole, Mail, ShieldCheck, Users } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -1274,27 +1276,23 @@ export function DeveloperOnboardingPage({
               </div>
               <ValidatedForm ref={authForm} className="onboarding-form" onSubmit={submitAuth} aria-busy={busy} key={`${step}-${authMode}`}>
                 {authMode === "signup" && <>
-                  <label>Your name<input autoComplete="name" required minLength={2} maxLength={120} value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
+                  <FloatingField id="account-name" label="Enter your full name"><input id="account-name" autoComplete="name" placeholder="" required minLength={2} maxLength={120} value={displayName} onChange={(event) => setDisplayName(toUppercaseOnboardingText(event.target.value))} /></FloatingField>
                 </>}
-                <label>Email address<input type="email" autoComplete="email" inputMode="email" required value={email} onChange={(event) => { setEmail(event.target.value); setError(""); }} /></label>
+                <FloatingField id="account-email" label="Enter your email address"><input id="account-email" type="email" autoComplete="email" inputMode="email" placeholder="" required value={email} onChange={(event) => { setEmail(event.target.value); setError(""); }} /></FloatingField>
                 <div className="onboarding-password-group">
-                  <label htmlFor="account-password">Password</label>
-                  <div className="onboarding-password-field">
-                    <input id="account-password" type={showPassword ? "text" : "password"} autoComplete={authMode === "signup" ? "new-password" : "current-password"} required value={password} onChange={(event) => setPassword(event.target.value)} />
-                    <button className="onboarding-password-toggle" type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)}>
+                  <FloatingField id="account-password" label="Enter your password" className="onboarding-password-field floating-group--no-search" searchIcon={false} suffix={<button className="onboarding-password-toggle" type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)}>
                       {showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
-                    </button>
-                  </div>
+                    </button>}>
+                    <input id="account-password" type={showPassword ? "text" : "password"} autoComplete={authMode === "signup" ? "new-password" : "current-password"} placeholder="" required value={password} onChange={(event) => setPassword(event.target.value)} />
+                  </FloatingField>
                 </div>
                 {authMode === "signup" && <>
                   <div className="onboarding-password-group">
-                    <label htmlFor="account-password-confirm">Confirm password</label>
-                    <div className="onboarding-password-field">
-                      <input id="account-password-confirm" type={showConfirmPassword ? "text" : "password"} autoComplete="new-password" aria-invalid={passwordMismatch} aria-describedby="signup-password-match" required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
-                      <button className="onboarding-password-toggle" type="button" aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"} aria-pressed={showConfirmPassword} onClick={() => setShowConfirmPassword((visible) => !visible)}>
+                    <FloatingField id="account-password-confirm" label="Confirm your password" className="onboarding-password-field floating-group--no-search" searchIcon={false} suffix={<button className="onboarding-password-toggle" type="button" aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"} aria-pressed={showConfirmPassword} onClick={() => setShowConfirmPassword((visible) => !visible)}>
                         {showConfirmPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
-                      </button>
-                    </div>
+                      </button>}>
+                      <input id="account-password-confirm" type={showConfirmPassword ? "text" : "password"} autoComplete="new-password" placeholder="" aria-invalid={passwordMismatch} aria-describedby="signup-password-match" required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
+                    </FloatingField>
                     <small className={`onboarding-password-match${passwordMismatch ? " is-invalid" : passwordMatch ? " is-valid" : ""}`} id="signup-password-match" aria-live="polite">
                       {passwordMismatch ? "Passwords do not match." : passwordMatch ? "Passwords match." : "Re-enter the same password."}
                     </small>
@@ -1432,13 +1430,13 @@ export function DeveloperOnboardingPage({
             </> : <>
               <p>Add this account to a TOTP authenticator app, then verify a current code. The secret is only shown during setup.</p>
               {mfaEnrollment && <div className="onboarding-mfa-enrollment-details">
-                <label>Authenticator setup URI<input readOnly value={mfaEnrollment.provisioningUri} /></label>
-                <label>Manual setup key<input readOnly value={mfaEnrollment.secret} /></label>
+                <FloatingField id="security-authenticator-uri" label="Authenticator setup URI"><input id="security-authenticator-uri" placeholder="" readOnly value={mfaEnrollment.provisioningUri} /></FloatingField>
+                <FloatingField id="security-authenticator-key" label="Manual setup key" searchIcon={false}><input id="security-authenticator-key" placeholder="" readOnly value={mfaEnrollment.secret} /></FloatingField>
               </div>}
               <ValidatedForm className="onboarding-form" onSubmit={(event) => void confirmRequiredMfaEnrollment(event)} aria-busy={busy}>
-                <label>Authenticator code<input autoComplete="one-time-code" inputMode="numeric" minLength={6}
-                  maxLength={6} required value={mfaEnrollmentCode}
-                  onChange={(event) => setMfaEnrollmentCode(event.target.value.replace(/\D/g, "").slice(0, 6))} /></label>
+                <FloatingField id="security-authenticator-code" label="Enter your authenticator code"><input id="security-authenticator-code" autoComplete="one-time-code" inputMode="numeric" minLength={6}
+                  maxLength={6} placeholder="" required value={mfaEnrollmentCode}
+                  onChange={(event) => setMfaEnrollmentCode(event.target.value.replace(/\D/g, "").slice(0, 6))} /></FloatingField>
                 {error && <p className="onboarding-error" role="alert">{error}</p>}
                 <button className="onboarding-primary" type="submit"
                   disabled={busy || !mfaEnrollment || mfaEnrollmentCode.length !== 6}>
@@ -1471,11 +1469,11 @@ export function DeveloperOnboardingPage({
               : <>
                 <p>Your workspace requires multi-factor authentication. Add this account to a TOTP authenticator app, then verify a current code to finish signing in.</p>
                 {mfaEnrollment && <div className="onboarding-mfa-enrollment-details">
-                  <label>Authenticator setup URI<input readOnly value={mfaEnrollment.provisioningUri} /></label>
-                  <label>Manual setup key<input readOnly value={mfaEnrollment.secret} /></label>
+                  <FloatingField id="mfa-authenticator-uri" label="Authenticator setup URI"><input id="mfa-authenticator-uri" placeholder="" readOnly value={mfaEnrollment.provisioningUri} /></FloatingField>
+                  <FloatingField id="mfa-authenticator-key" label="Manual setup key" searchIcon={false}><input id="mfa-authenticator-key" placeholder="" readOnly value={mfaEnrollment.secret} /></FloatingField>
                 </div>}
                 <ValidatedForm className="onboarding-form" onSubmit={(event) => void confirmRequiredMfaEnrollment(event)} aria-busy={busy}>
-                  <label>Authenticator code<input autoComplete="one-time-code" inputMode="numeric" minLength={6} maxLength={6} required value={mfaEnrollmentCode} onChange={(event) => setMfaEnrollmentCode(event.target.value.replace(/\D/g, "").slice(0, 6))} /></label>
+                  <FloatingField id="mfa-authenticator-code" label="Enter your authenticator code"><input id="mfa-authenticator-code" autoComplete="one-time-code" inputMode="numeric" minLength={6} maxLength={6} placeholder="" required value={mfaEnrollmentCode} onChange={(event) => setMfaEnrollmentCode(event.target.value.replace(/\D/g, "").slice(0, 6))} /></FloatingField>
                   {error && <p className="onboarding-error" role="alert">{error}</p>}
                   <button className="onboarding-primary" type="submit" disabled={busy || !mfaEnrollment || mfaEnrollmentCode.length !== 6}>
                     {busy ? "Verifying…" : "Verify authenticator and save recovery codes"} <ArrowRight size={17} />
@@ -1503,7 +1501,7 @@ export function DeveloperOnboardingPage({
                 setError(safeUserErrorMessage(resetError, "We could not request a reset link."));
               } finally { setBusy(false); }
             }} aria-busy={busy}>
-              <label>Email address<input type="email" autoComplete="email" required value={email} onChange={(event) => { setEmail(event.target.value); if (verificationNotice) setVerificationNotice(""); }} /></label>
+              <FloatingField id="forgot-email" label="Enter your email address"><input id="forgot-email" type="email" autoComplete="email" placeholder="" required value={email} onChange={(event) => { setEmail(event.target.value); if (verificationNotice) setVerificationNotice(""); }} /></FloatingField>
               {error && <p className="onboarding-error" role="alert">{error}</p>}
               <button className="onboarding-primary" type="submit" disabled={busy}>{busy ? <><LoaderCircle size={17} aria-hidden="true" /> Checking account…</> : <>Send reset link<ArrowRight size={17} /></>}</button>
             </ValidatedForm>
@@ -1543,22 +1541,18 @@ export function DeveloperOnboardingPage({
               } finally { setBusy(false); }
             }} aria-busy={busy}>
               <div className="onboarding-password-group">
-                <label htmlFor="reset-password">New password</label>
-                <div className="onboarding-password-field">
-                  <input id="reset-password" type={showPassword ? "text" : "password"} autoComplete="new-password" required value={password} onChange={(event) => setPassword(event.target.value)} />
-                  <button className="onboarding-password-toggle" type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)}>
+                <FloatingField id="reset-password" label="Enter your new password" className="onboarding-password-field floating-group--no-search" searchIcon={false} suffix={<button className="onboarding-password-toggle" type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)}>
                     {showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
-                  </button>
-                </div>
+                  </button>}>
+                  <input id="reset-password" type={showPassword ? "text" : "password"} autoComplete="new-password" placeholder="" required value={password} onChange={(event) => setPassword(event.target.value)} />
+                </FloatingField>
               </div>
               <div className="onboarding-password-group">
-                <label htmlFor="reset-password-confirm">Confirm new password</label>
-                <div className="onboarding-password-field">
-                  <input id="reset-password-confirm" type={showConfirmPassword ? "text" : "password"} autoComplete="new-password" aria-invalid={passwordMismatch} aria-describedby="reset-password-match" required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
-                  <button className="onboarding-password-toggle" type="button" aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"} aria-pressed={showConfirmPassword} onClick={() => setShowConfirmPassword((visible) => !visible)}>
+                <FloatingField id="reset-password-confirm" label="Confirm your new password" className="onboarding-password-field floating-group--no-search" searchIcon={false} suffix={<button className="onboarding-password-toggle" type="button" aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"} aria-pressed={showConfirmPassword} onClick={() => setShowConfirmPassword((visible) => !visible)}>
                     {showConfirmPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
-                  </button>
-                </div>
+                  </button>}>
+                  <input id="reset-password-confirm" type={showConfirmPassword ? "text" : "password"} autoComplete="new-password" placeholder="" aria-invalid={passwordMismatch} aria-describedby="reset-password-match" required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
+                </FloatingField>
                 <small className={`onboarding-password-match${passwordMismatch ? " is-invalid" : passwordMatch ? " is-valid" : ""}`} id="reset-password-match" aria-live="polite">
                   {passwordMismatch ? "Passwords do not match." : passwordMatch ? "Passwords match." : "Re-enter the same password."}
                 </small>
@@ -1599,7 +1593,7 @@ export function DeveloperOnboardingPage({
               <p>Your profile name appears in your developer workspace and activity history.</p>
             </div>
             <ValidatedForm className="onboarding-form" onSubmit={saveProfile}>
-              <label>Full name<input autoFocus required minLength={2} maxLength={120} value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
+              <FloatingField id="profile-full-name" label="Enter your full name"><input id="profile-full-name" autoFocus placeholder="" required minLength={2} maxLength={120} value={displayName} onChange={(event) => setDisplayName(toUppercaseOnboardingText(event.target.value))} /></FloatingField>
               {error && <p className="onboarding-error" role="alert">{error}</p>}
               <button className="onboarding-primary" type="submit" disabled={busy}>{busy ? "Saving…" : "Save profile"}<ArrowRight size={17} /></button>
             </ValidatedForm>
@@ -1613,8 +1607,8 @@ export function DeveloperOnboardingPage({
                 <p>Organizations group your projects and team access. This organization is created only after you submit these details.</p>
               </div>
               <ValidatedForm className="onboarding-form" onSubmit={submitOrganizationStep} aria-busy={busy}>
-                <label>Organization name<input autoFocus required minLength={2} maxLength={120} value={newOrganizationName} onChange={(event) => setNewOrganizationName(event.target.value)} /></label>
-                <label>Description<textarea required minLength={10} maxLength={500} rows={4} value={newOrganizationDescription} onChange={(event) => setNewOrganizationDescription(event.target.value)} /></label>
+                <FloatingField id="organization-name" label="Enter your organization name"><input id="organization-name" autoFocus placeholder="" required minLength={2} maxLength={120} value={newOrganizationName} onChange={(event) => setNewOrganizationName(toUppercaseOnboardingText(event.target.value))} /></FloatingField>
+                <FloatingField id="organization-description" label="Enter an organization description" className="floating-group--textarea"><textarea id="organization-description" placeholder="" required minLength={10} maxLength={500} rows={4} value={newOrganizationDescription} onChange={(event) => setNewOrganizationDescription(toUppercaseOnboardingText(event.target.value))} /></FloatingField>
                 {error && <p className="onboarding-error" role="alert">{error}</p>}
                 <button className="onboarding-primary" type="submit" disabled={busy}>{busy
                   ? status === "authenticated" ? "Saving organization…" : "Creating account…"
@@ -1632,7 +1626,7 @@ export function DeveloperOnboardingPage({
                 <p>Choose a project name and starter. This creates only the project; you will select and create its environment next.</p>
               </div>
               {!bootstrap?.project.id ? <ValidatedForm className="onboarding-form" onSubmit={createProject}>
-                <label>Project name<input autoFocus required minLength={2} maxLength={120} placeholder="Project name" value={projectName} onChange={(event) => setProjectName(event.target.value)} /></label>
+                <FloatingField id="project-name" label="Enter your project name"><input id="project-name" autoFocus required minLength={2} maxLength={120} placeholder="" value={projectName} onChange={(event) => setProjectName(toUppercaseOnboardingText(event.target.value))} /></FloatingField>
                 <fieldset className="onboarding-template-options">
                   <legend>Starter template</legend>
                   {([
@@ -1666,7 +1660,7 @@ export function DeveloperOnboardingPage({
               <h2 id="onboarding-title">{bootstrap?.environment ? "Sandbox environment ready" : "Select an environment"}</h2>
               <p>A sandbox keeps test requests and test credentials separate from production.</p>
               {bootstrap?.environment ? <button className="onboarding-primary" type="button" disabled={busy} onClick={() => void advanceWizard("api-key", "environment")}>Continue to API key <ArrowRight size={17} /></button> : <ValidatedForm className="onboarding-form" onSubmit={createEnvironment}>
-                <label>Environment name<input autoFocus required minLength={2} maxLength={80} value={environmentName} onChange={(event) => setEnvironmentName(event.target.value)} /></label>
+                <FloatingField id="environment-name" label="Enter your environment name"><input id="environment-name" autoFocus placeholder="" required minLength={2} maxLength={80} value={environmentName} onChange={(event) => setEnvironmentName(toUppercaseOnboardingText(event.target.value))} /></FloatingField>
                 <p className="onboarding-footnote"><strong>Sandbox</strong> is recommended for first testing. It contains test data and is separate from production.</p>
                 {error && <p className="onboarding-error" role="alert">{error}</p>}
                 <button className="onboarding-primary" type="submit" disabled={busy || !bootstrap?.project.id}>{busy ? "Creating environment…" : "Create sandbox environment"}<ArrowRight size={17} /></button>

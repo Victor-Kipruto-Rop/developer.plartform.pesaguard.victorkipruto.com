@@ -1,9 +1,11 @@
 import { getUserMessage } from "../../lib/errors";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { ArrowRight, Check, Eye, EyeOff, KeyRound, LoaderCircle, ShieldCheck, UserRoundPlus, X } from "lucide-react";
+import { ArrowRight, Check, Circle, Eye, EyeOff, KeyRound, LoaderCircle, ShieldCheck, UserRoundPlus, X } from "lucide-react";
+import { FloatingField } from "../../components/forms/FloatingField";
 import { getCountries, getCountryCallingCode, parsePhoneNumberFromString, type CountryCode } from "libphonenumber-js";
 import { ApiError } from "../../lib/api";
 import * as authApi from "../../lib/authApi";
+import { getPasswordFeedback } from "../../lib/passwordFeedback";
 import { useAuth } from "../../context/AuthContext";
 import type { LoginEmailMfaChallenge } from "../../types/auth";
 import "../../styles/auth-pages.css";
@@ -86,6 +88,30 @@ function SixDigitCodeInput({
       </div>
     </fieldset>
   );
+}
+
+function PasswordGuidance({ feedback }: { feedback: ReturnType<typeof getPasswordFeedback> }) {
+  return <section className="public-auth-password-guidance" aria-label="Password guidance">
+    <div className="public-auth-password-strength">
+      <div className="public-auth-password-strength__label">
+        <span>Password strength estimate</span><span>{feedback.strength.label}</span>
+      </div>
+      <div className="public-auth-password-meter" role="meter" aria-label="Password strength estimate"
+        aria-valuemin={0} aria-valuemax={feedback.strength.maximum} aria-valuenow={feedback.strength.score}
+        aria-valuetext={feedback.strength.label}>
+        <span data-score={feedback.strength.score} style={{ width: `${feedback.strength.score * 20}%` }} />
+      </div>
+    </div>
+    <ul className="public-auth-password-requirements" aria-label="Password requirements">
+      {Object.entries(feedback.requirements).map(([key, requirement]) => (
+        <li key={key} data-met={requirement.met}>
+          {requirement.met ? <Check size={14} aria-hidden="true" /> : <Circle size={14} aria-hidden="true" />}
+          {requirement.label}
+        </li>
+      ))}
+    </ul>
+    <small>Estimate only. We also check for personal details and passwords found in known breaches.</small>
+  </section>;
 }
 
 const countryNames = new Intl.DisplayNames(["en"], { type: "region" });
@@ -256,15 +282,28 @@ function AuthPage({ mode, initialView = mode }: AuthPageProps) {
   const resendSeconds = resendAvailableAt === null ? 0 : Math.max(0, Math.ceil((resendAvailableAt - now) / 1000));
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const phoneIsValid = Boolean(parsePhoneNumberFromString(phoneNumber, phoneCountry)?.isValid());
+  const passwordFeedback = getPasswordFeedback(password, confirmPassword);
   const forgotEmailError = validationAttempted
     ? !email.trim() ? "Please enter your email address."
       : !isEmailValid ? "Enter a valid email address."
         : null
     : null;
-  const resetPasswordError = validationAttempted && !password ? "Please enter a new password." : null;
+  const resetPasswordError = validationAttempted
+    ? !password ? "Please enter a new password."
+      : !passwordFeedback.requirements.minimumLength.met ? "Use at least 12 characters."
+        : !passwordFeedback.requirements.maximumBytes.met ? "Password must be no more than 72 UTF-8 bytes."
+          : null
+    : null;
   const resetConfirmationError = validationAttempted && !confirmPassword
     ? "Please confirm your new password."
     : validationAttempted && password !== confirmPassword ? "Passwords do not match." : null;
+  const registrationFormInvalid = registrationAttempted && (
+    !firstName.trim() || !lastName.trim() || !isEmailValid || !phoneIsValid
+    || !passwordFeedback.requirements.minimumLength.met
+    || !passwordFeedback.requirements.maximumBytes.met
+    || !passwordFeedback.requirements.matches.met || !acceptedTerms
+  );
+  const resetFormInvalid = Boolean(resetPasswordError || resetConfirmationError);
 
   useEffect(() => {
     if (!successDialog) return;
@@ -383,8 +422,10 @@ function AuthPage({ mode, initialView = mode }: AuthPageProps) {
     setRegistrationAttempted(true);
     setValidationAttempted(true);
     setError("");
-    if (!firstName.trim() || !lastName.trim() || !isEmailValid || !password
-      || !confirmPassword || password !== confirmPassword
+    if (!firstName.trim() || !lastName.trim() || !isEmailValid
+      || !passwordFeedback.requirements.minimumLength.met
+      || !passwordFeedback.requirements.maximumBytes.met
+      || !passwordFeedback.requirements.matches.met
       || !acceptedTerms) return;
     const parsedPhoneNumber = parsePhoneNumberFromString(phoneNumber, phoneCountry);
     if (!parsedPhoneNumber?.isValid()) return;
@@ -509,7 +550,9 @@ function AuthPage({ mode, initialView = mode }: AuthPageProps) {
       setError("This password reset link is missing its token. Request a new reset email.");
       return;
     }
-    if (!password || !confirmPassword || password !== confirmPassword) return;
+    if (!passwordFeedback.requirements.minimumLength.met
+      || !passwordFeedback.requirements.maximumBytes.met
+      || !passwordFeedback.requirements.matches.met) return;
     setBusy(true);
     setError("");
     setMessage("");
@@ -561,7 +604,7 @@ function AuthPage({ mode, initialView = mode }: AuthPageProps) {
     locked: "Verification temporarily locked",
   }[view];
   const subtitle = {
-    login: "Use your email address and password to sign in.",
+    login: "Use your Email Address/Username and password to log in to PesaGuard",
     register: "Create your personal PesaGuard account.",
     verify: `Enter the six-digit code sent to ${email || "your email address"}.`,
     "email-mfa": `We sent a One Time Password to ${loginMfaChallenge?.maskedEmail ?? (challenge?.kind === "email_mfa_required" ? challenge.challenge.maskedEmail : "your email address")}.`,
@@ -587,26 +630,18 @@ function AuthPage({ mode, initialView = mode }: AuthPageProps) {
     const passwordInvalid = ((loginAttempted || passwordTouched) && !password) || authFailed;
     form = <form className={`public-auth-form public-auth-login-form${authFailed ? " is-auth-failed" : ""}`} onSubmit={(event) => void submitLogin(event)} aria-busy={busy} noValidate>
       {alertContent()}
-      <label className="public-auth-login-label">
-        <span>Email or username</span>
-        <span className={`public-auth-input-wrap public-auth-identifier-wrap${identifierIsReady ? " is-ready" : ""}${identifierInvalid ? " is-invalid" : ""}`}>
-          <input autoComplete="username" type="text" name="email" placeholder="Email or username" value={email} onBlur={() => setIdentifierTouched(true)} onChange={(event) => { setEmail(event.target.value); setAuthFailed(false); setError(""); }} aria-invalid={identifierInvalid || undefined} aria-describedby={identifierInvalid && !authFailed ? "public-login-identifier-error" : undefined} />
-          {email && <button className="public-auth-input-action" type="button" aria-label="Clear email or username" onClick={() => { setEmail(""); setAuthFailed(false); setError(""); }}><X size={17} aria-hidden="true" /></button>}
-          <span className="public-auth-input-line" aria-hidden="true" />
-        </span>
+      <div className="public-auth-login-label">
+        <FloatingField id="public-login-identifier" label="Enter your email address or username" className={`public-auth-input-wrap public-auth-identifier-wrap${identifierIsReady ? " is-ready" : ""}${identifierInvalid ? " is-invalid" : ""}`} suffix={email && <button className="public-auth-input-action" type="button" aria-label="Clear email or username" onClick={() => { setEmail(""); setAuthFailed(false); setError(""); }}><X size={17} aria-hidden="true" /></button>}>
+          <input id="public-login-identifier" autoComplete="username" type="text" name="email" placeholder="" value={email} onBlur={() => setIdentifierTouched(true)} onChange={(event) => { setEmail(event.target.value); setAuthFailed(false); setError(""); }} aria-invalid={identifierInvalid || undefined} aria-describedby={identifierInvalid && !authFailed ? "public-login-identifier-error" : undefined} />
+        </FloatingField>
         {identifierInvalid && !authFailed && <small className="public-auth-field-error" id="public-login-identifier-error" role="alert">Please enter your email or username</small>}
-      </label>
-      <label className="public-auth-login-label">
-        <span>Password</span>
-        <span className={`public-auth-input-wrap${passwordInvalid ? " is-invalid" : ""}`}>
-          <input autoComplete="current-password" type={showPassword ? "text" : "password"} name="password" placeholder="Password" value={password} onBlur={() => setPasswordTouched(true)} onChange={(event) => { setPassword(event.target.value); setAuthFailed(false); setError(""); }} aria-invalid={passwordInvalid || undefined} aria-describedby={passwordInvalid && !authFailed ? "public-login-password-error" : undefined} />
-          <button className="public-auth-input-action" type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword((shown) => !shown)}>
-            {showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
-          </button>
-          <span className="public-auth-input-line" aria-hidden="true" />
-        </span>
+      </div>
+      <div className="public-auth-login-label">
+        <FloatingField id="public-login-password" label="Enter your password" className={`public-auth-input-wrap floating-group--no-search${passwordInvalid ? " is-invalid" : ""}`} searchIcon={false} suffix={<button className="public-auth-input-action public-auth-password-toggle" type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword((shown) => !shown)}>{showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}</button>}>
+          <input id="public-login-password" autoComplete="current-password" type={showPassword ? "text" : "password"} name="password" placeholder="" value={password} onBlur={() => setPasswordTouched(true)} onChange={(event) => { setPassword(event.target.value); setAuthFailed(false); setError(""); }} aria-invalid={passwordInvalid || undefined} aria-describedby={passwordInvalid && !authFailed ? "public-login-password-error" : undefined} />
+        </FloatingField>
         {passwordInvalid && !authFailed && <small className="public-auth-field-error" id="public-login-password-error" role="alert">Please enter your password</small>}
-      </label>
+      </div>
       <button className="public-auth-submit" type="submit" disabled={busy || status === "authenticating" || !identifierIsReady}>
         {busy ? <><LoaderCircle className="public-auth-spinner" size={17} aria-hidden="true" /> Signing in…</> : "Login"}
       </button>
@@ -614,72 +649,79 @@ function AuthPage({ mode, initialView = mode }: AuthPageProps) {
       <p className="public-auth-switch">Don't have an account yet? <a href="/register">Sign up</a></p>
     </form>;
   } else if (view === "register") {
-    form = <form className="public-auth-form public-auth-register-form" onSubmit={(event) => void submitRegistration(event)} aria-busy={busy} noValidate>
+    form = <form className={`public-auth-form public-auth-register-form${registrationFormInvalid ? " is-validation-failed" : ""}`} onSubmit={(event) => void submitRegistration(event)} aria-busy={busy} noValidate>
       {alertContent()}
       <div className="public-auth-register-grid">
-        <label className="public-auth-register-field">First name
-          <span className="public-auth-register-input-wrap"><input autoComplete="given-name" name="given-name" required value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="First name" aria-invalid={registrationAttempted && !firstName.trim() || undefined} />
-            {firstName && <button type="button" aria-label="Clear first name" onClick={() => setFirstName("")}><X size={16} aria-hidden="true" /></button>}
-          </span>
+        <div className="public-auth-register-field">
+          <FloatingField id="register-first-name" label="Enter your first name" className="public-auth-register-input-wrap" suffix={firstName && <button type="button" aria-label="Clear first name" onClick={() => setFirstName("")}><X size={16} aria-hidden="true" /></button>}>
+            <input id="register-first-name" autoComplete="given-name" name="given-name" required value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="" aria-invalid={registrationAttempted && !firstName.trim() || undefined} />
+          </FloatingField>
           {registrationAttempted && !firstName.trim() && <small className="public-auth-field-error" role="alert">Please enter your first name.</small>}
-        </label>
-        <label className="public-auth-register-field">Last name
-          <span className="public-auth-register-input-wrap"><input autoComplete="family-name" name="family-name" required value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder="Last name" aria-invalid={registrationAttempted && !lastName.trim() || undefined} />
-            {lastName && <button type="button" aria-label="Clear last name" onClick={() => setLastName("")}><X size={16} aria-hidden="true" /></button>}
-          </span>
+        </div>
+        <div className="public-auth-register-field">
+          <FloatingField id="register-last-name" label="Enter your last name" className="public-auth-register-input-wrap" suffix={lastName && <button type="button" aria-label="Clear last name" onClick={() => setLastName("")}><X size={16} aria-hidden="true" /></button>}>
+            <input id="register-last-name" autoComplete="family-name" name="family-name" required value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder="" aria-invalid={registrationAttempted && !lastName.trim() || undefined} />
+          </FloatingField>
           {registrationAttempted && !lastName.trim() && <small className="public-auth-field-error" role="alert">Please enter your last name.</small>}
-        </label>
-        <label className="public-auth-register-field">Email address
-          <span className="public-auth-register-input-wrap"><input autoComplete="email" type="email" name="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email address" aria-invalid={registrationAttempted && !isEmailValid || undefined} />
-            {email && <button type="button" aria-label="Clear email address" onClick={() => setEmail("")}><X size={16} aria-hidden="true" /></button>}
-          </span>
+        </div>
+        <div className="public-auth-register-field">
+          <FloatingField id="register-email" label="Enter your email address" className="public-auth-register-input-wrap" suffix={email && <button type="button" aria-label="Clear email address" onClick={() => setEmail("")}><X size={16} aria-hidden="true" /></button>}>
+            <input id="register-email" autoComplete="email" type="email" name="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="" aria-invalid={registrationAttempted && !isEmailValid || undefined} />
+          </FloatingField>
           {registrationAttempted && !email.trim() && <small className="public-auth-field-error" role="alert">Please enter your email address.</small>}
           {registrationAttempted && email.trim() && !isEmailValid && <small className="public-auth-field-error" role="alert">Enter a valid email address.</small>}
-        </label>
+        </div>
         <div className="public-auth-register-phone-group">
-          <label className="public-auth-register-field public-auth-register-country-field">Country
-            <select name="phone-country" value={phoneCountry} onChange={(event) => {
+          <div className="public-auth-register-field public-auth-register-country-field">
+            <FloatingField id="register-phone-country" label="Choose your country" className="public-auth-register-select-wrap">
+              <select id="register-phone-country" name="phone-country" value={phoneCountry} onChange={(event) => {
               const selectedCountry = phoneCountries.find(({ country }) => country === event.target.value)?.country;
               if (selectedCountry) setPhoneCountry(selectedCountry);
             }} required>
               {phoneCountries.map(({ country, name, callingCode }) =>
                 <option key={country} value={country}>{name} (+{callingCode})</option>)}
-            </select>
-          </label>
-          <label className="public-auth-register-field">Phone number
-            <span className="public-auth-register-input-wrap"><input autoComplete="tel-national" type="tel" name="phone" required value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} placeholder="Phone number" aria-invalid={registrationAttempted && !phoneIsValid || undefined} />
-              {phoneNumber && <button type="button" aria-label="Clear phone number" onClick={() => setPhoneNumber("")}><X size={16} aria-hidden="true" /></button>}
-            </span>
+              </select>
+            </FloatingField>
+          </div>
+          <div className="public-auth-register-field">
+            <FloatingField id="register-phone" label="Enter your phone number" className="public-auth-register-input-wrap" suffix={phoneNumber && <button type="button" aria-label="Clear phone number" onClick={() => setPhoneNumber("")}><X size={16} aria-hidden="true" /></button>}>
+              <input id="register-phone" autoComplete="tel-national" type="tel" name="phone" required value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} placeholder="" aria-invalid={registrationAttempted && !phoneIsValid || undefined} />
+            </FloatingField>
             {registrationAttempted && !phoneIsValid && <small className="public-auth-field-error" role="alert">{phoneNumber ? "Enter a valid phone number for the selected country." : "Please enter your phone number."}</small>}
-          </label>
+          </div>
         </div>
-        <label className="public-auth-register-field">Password
-          <span className="public-auth-register-input-wrap"><input autoComplete="new-password" type={showPassword ? "text" : "password"} name="new-password" required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" aria-invalid={registrationAttempted && !password || undefined} />
-            <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword((shown) => !shown)}>{showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}</button>
-          </span>
+        <div className="public-auth-register-field">
+          <FloatingField id="register-password" label="Enter your password" className="public-auth-register-input-wrap floating-group--no-search" searchIcon={false} suffix={<button className="public-auth-password-toggle" type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword((shown) => !shown)}>{showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}</button>}>
+            <input id="register-password" autoComplete="new-password" type={showPassword ? "text" : "password"} name="new-password" required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="" aria-invalid={registrationAttempted && (!passwordFeedback.requirements.minimumLength.met || !passwordFeedback.requirements.maximumBytes.met) || undefined} />
+          </FloatingField>
           {registrationAttempted && !password && <small className="public-auth-field-error" role="alert">Please enter a password.</small>}
-        </label>
-        <label className="public-auth-register-field">Confirm password
-          <span className="public-auth-register-input-wrap"><input autoComplete="new-password" type={showConfirmPassword ? "text" : "password"} name="confirm-password" required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Confirm password" aria-invalid={registrationAttempted && (!confirmPassword || password !== confirmPassword) || undefined} />
-            <button type="button" aria-label={showConfirmPassword ? "Hide password" : "Show password"} aria-pressed={showConfirmPassword} onClick={() => setShowConfirmPassword((shown) => !shown)}>{showConfirmPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}</button>
-          </span>
+          {registrationAttempted && password && !passwordFeedback.requirements.minimumLength.met && <small className="public-auth-field-error" role="alert">Use at least 12 characters.</small>}
+          {registrationAttempted && password && !passwordFeedback.requirements.maximumBytes.met && <small className="public-auth-field-error" role="alert">Password must be no more than 72 UTF-8 bytes.</small>}
+        </div>
+        <div className="public-auth-register-field">
+          <FloatingField id="register-confirm-password" label="Confirm your password" className="public-auth-register-input-wrap floating-group--no-search" searchIcon={false} suffix={<button className="public-auth-password-toggle" type="button" aria-label={showConfirmPassword ? "Hide password" : "Show password"} aria-pressed={showConfirmPassword} onClick={() => setShowConfirmPassword((shown) => !shown)}>{showConfirmPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}</button>}>
+            <input id="register-confirm-password" autoComplete="new-password" type={showConfirmPassword ? "text" : "password"} name="confirm-password" required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="" aria-invalid={registrationAttempted && (!confirmPassword || password !== confirmPassword) || undefined} />
+          </FloatingField>
           {registrationAttempted && !confirmPassword && <small className="public-auth-field-error" role="alert">Please confirm your password.</small>}
           {registrationAttempted && confirmPassword && password !== confirmPassword && <small className="public-auth-field-error" role="alert">Passwords do not match.</small>}
-        </label>
+        </div>
+        <PasswordGuidance feedback={passwordFeedback} />
       </div>
       <label className="public-auth-checkbox">
         <input type="checkbox" required checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} aria-invalid={registrationAttempted && !acceptedTerms || undefined} />
         <span>I agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</span>
       </label>
       {registrationAttempted && !acceptedTerms && <small className="public-auth-field-error public-auth-terms-error" role="alert">Accept the terms to create an account.</small>}
-      <button className="public-auth-submit" type="submit" disabled={busy || status === "authenticating" || !acceptedTerms}>{busy ? "Creating account…" : "Sign up"}</button>
+      <button className="public-auth-submit" type="submit" disabled={busy || status === "authenticating"}>{busy ? <><LoaderCircle className="public-auth-spinner" size={17} aria-hidden="true" /> Creating account…</> : "Sign up"}</button>
       <p className="public-auth-switch">Already have an account? <a href="/login">Log in</a></p>
     </form>;
   } else if (view === "verify" || view === "email-mfa") {
     form = <form className="public-auth-form" onSubmit={(event) => void (view === "email-mfa" ? submitEmailMfa(event) : submitVerification(event))} aria-busy={busy} noValidate>
       {alertContent()}
       {view === "verify" && <>
-        <label>Email address<input autoComplete="email" type="email" name="email" required value={email} onChange={(event) => setEmail(event.target.value)} aria-invalid={validationAttempted && !isEmailValid || undefined} /></label>
+        <FloatingField id="verify-email" label="Enter your email address">
+          <input id="verify-email" autoComplete="email" type="email" name="email" placeholder="" required value={email} onChange={(event) => setEmail(event.target.value)} aria-invalid={validationAttempted && !isEmailValid || undefined} />
+        </FloatingField>
         {validationAttempted && !isEmailValid && <small className="public-auth-field-error" role="alert">{email.trim() ? "Enter a valid email address." : "Please enter your email address."}</small>}
       </>}
       <SixDigitCodeInput
@@ -716,22 +758,25 @@ function AuthPage({ mode, initialView = mode }: AuthPageProps) {
   } else if (view === "forgot") {
     form = <form className="public-auth-form" onSubmit={(event) => void submitForgotPassword(event)} aria-busy={busy} noValidate>
       {alertContent()}
-      <label>Email address<input autoComplete="email" autoFocus type="email" name="email" required value={email} onChange={(event) => { setEmail(event.target.value); setError(""); setMessage(""); }} aria-invalid={Boolean(forgotEmailError) || undefined} aria-describedby={forgotEmailError ? "public-forgot-email-error" : undefined} /></label>
+      <FloatingField id="forgot-email" label="Enter your email address">
+        <input id="forgot-email" autoComplete="email" autoFocus type="email" name="email" placeholder="" required value={email} onChange={(event) => { setEmail(event.target.value); setError(""); setMessage(""); }} aria-invalid={Boolean(forgotEmailError) || undefined} aria-describedby={forgotEmailError ? "public-forgot-email-error" : undefined} />
+      </FloatingField>
       {forgotEmailError && <small className="public-auth-field-error" id="public-forgot-email-error" role="alert">{forgotEmailError}</small>}
       <button className="public-auth-submit" type="submit" disabled={busy}>{busy ? "Sending…" : "Reset Password"}</button>
       <p className="public-auth-switch">No account yet? <a href="/register">Create one</a> · <a href="/login">Back to sign in</a></p>
     </form>;
   } else if (view === "reset") {
-    form = <form className="public-auth-form" onSubmit={(event) => void submitPasswordReset(event)} aria-busy={busy} noValidate>
+    form = <form className={`public-auth-form${resetFormInvalid ? " is-validation-failed" : ""}`} onSubmit={(event) => void submitPasswordReset(event)} aria-busy={busy} noValidate>
       {alertContent()}
       {!resetToken && <p className="public-auth-error" role="alert">This reset link is incomplete. <a href="/forgot-password">Request another reset email</a>.</p>}
-      <label className="public-auth-password-label"><span>New password</span><span className="public-auth-password-input"><input autoComplete="new-password" type={showPassword ? "text" : "password"} name="new-password" placeholder="New password" required value={password} onChange={(event) => { setPassword(event.target.value); setError(""); }} aria-invalid={Boolean(resetPasswordError) || undefined} aria-describedby={resetPasswordError ? "public-reset-password-error" : undefined} /><button type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword((shown) => !shown)}>{showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}</button></span>
+      <div className="public-auth-password-label"><FloatingField id="reset-password" label="Enter your new password" className="public-auth-password-input floating-group--no-search" searchIcon={false} suffix={<button className="public-auth-password-toggle" type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword((shown) => !shown)}>{showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}</button>}><input id="reset-password" autoComplete="new-password" type={showPassword ? "text" : "password"} name="new-password" placeholder="" required value={password} onChange={(event) => { setPassword(event.target.value); setError(""); }} aria-invalid={Boolean(resetPasswordError) || undefined} aria-describedby={resetPasswordError ? "public-reset-password-error" : undefined} /></FloatingField>
         {resetPasswordError && <small className="public-auth-field-error" id="public-reset-password-error" role="alert">{resetPasswordError}</small>}
-      </label>
-      <label className="public-auth-password-label"><span>Confirm new password</span><span className="public-auth-password-input"><input autoComplete="new-password" type={showConfirmPassword ? "text" : "password"} name="confirm-password" placeholder="Confirm password" required value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setError(""); }} aria-invalid={Boolean(resetConfirmationError) || undefined} aria-describedby={resetConfirmationError ? "public-reset-confirm-error" : undefined} /><button type="button" aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"} aria-pressed={showConfirmPassword} onClick={() => setShowConfirmPassword((shown) => !shown)}>{showConfirmPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}</button></span>
+      </div>
+      <div className="public-auth-password-label"><FloatingField id="reset-password-confirm" label="Confirm your new password" className="public-auth-password-input floating-group--no-search" searchIcon={false} suffix={<button className="public-auth-password-toggle" type="button" aria-label={showConfirmPassword ? "Hide confirmation password" : "Show confirmation password"} aria-pressed={showConfirmPassword} onClick={() => setShowConfirmPassword((shown) => !shown)}>{showConfirmPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}</button>}><input id="reset-password-confirm" autoComplete="new-password" type={showConfirmPassword ? "text" : "password"} name="confirm-password" placeholder="" required value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setError(""); }} aria-invalid={Boolean(resetConfirmationError) || undefined} aria-describedby={resetConfirmationError ? "public-reset-confirm-error" : undefined} /></FloatingField>
         {resetConfirmationError && <small className="public-auth-field-error" id="public-reset-confirm-error" role="alert">{resetConfirmationError}</small>}
-      </label>
-      <button className="public-auth-submit" type="submit" disabled={busy || !resetToken}>{busy ? "Updating password…" : "Reset Password"}</button>
+      </div>
+      <PasswordGuidance feedback={passwordFeedback} />
+      <button className="public-auth-submit" type="submit" disabled={busy || !resetToken}>{busy ? <><LoaderCircle className="public-auth-spinner" size={17} aria-hidden="true" /> Updating password…</> : "Reset Password"}</button>
       <p className="public-auth-switch public-auth-reset-contact">Have a problem with password reset? <a href="mailto:support@pesaguard.co.ke">Contact us</a></p>
     </form>;
   } else if (view === "enroll-mfa") {
@@ -744,12 +789,11 @@ function AuthPage({ mode, initialView = mode }: AuthPageProps) {
         </button>
       </> : <>
         <p className="public-auth-mfa-instructions">Add this authenticator setup URI to your app, then enter its current six-digit code.</p>
-        {enrollment && <label>Authenticator setup URI<input readOnly value={enrollment.provisioningUri} /></label>}
-        {enrollment && <label>Manual setup key<input readOnly value={enrollment.secret} /></label>}
+        {enrollment && <FloatingField id="authenticator-setup-uri" label="Authenticator setup URI"><input id="authenticator-setup-uri" placeholder="" readOnly value={enrollment.provisioningUri} /></FloatingField>}
+        {enrollment && <FloatingField id="authenticator-manual-key" label="Manual setup key" searchIcon={false}><input id="authenticator-manual-key" placeholder="" readOnly value={enrollment.secret} /></FloatingField>}
         <form className="public-auth-nested-form" onSubmit={(event) => void submitEnrollment(event)} noValidate>
-          <label>Authenticator code<input autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} required value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} aria-invalid={validationAttempted && code.length !== 6 || undefined} />
-            {validationAttempted && code.length !== 6 && <small className="public-auth-field-error" role="alert">Enter the six-digit code from your authenticator app.</small>}
-          </label>
+          <FloatingField id="authenticator-code" label="Enter your authenticator code"><input id="authenticator-code" autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} placeholder="" required value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} aria-invalid={validationAttempted && code.length !== 6 || undefined} /></FloatingField>
+          {validationAttempted && code.length !== 6 && <small className="public-auth-field-error" role="alert">Enter the six-digit code from your authenticator app.</small>}
           <button className="public-auth-submit" type="submit" disabled={busy}>{busy ? "Confirming…" : "Confirm authenticator"} <ArrowRight size={17} aria-hidden="true" /></button>
         </form>
       </>}

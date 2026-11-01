@@ -103,6 +103,28 @@ button:disabled { cursor: not-allowed; opacity: .56; }
 .global-toast__copy span { color: var(--text-muted); font-size: 12px; line-height: 1.45; }
 .global-toast > button { display: grid; width: 24px; height: 24px; flex: 0 0 auto; place-items: center; color: var(--text-faint); background: transparent; border: 0; border-radius: 5px; cursor: pointer; }
 .global-toast > button:hover { color: var(--text); background: var(--paper-sunken); }
+
+@media (max-width: 600px) {
+  .global-toast-region {
+    top: max(12px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+    width: min(390px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+  }
+
+  .global-toast {
+    min-width: 0;
+  }
+
+  .global-toast__copy {
+    overflow-wrap: anywhere;
+  }
+
+  .global-toast__copy span {
+    font-size: 13px;
+  }
+}
 .app-error-screen { display: grid; min-height: 100vh; place-items: center; padding: 24px; background: var(--paper-sunken); }
 .app-error-card { width: min(100%, 460px); padding: 30px; background: var(--paper-raised); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-lg); }
 .app-error-card .button { margin-right: 8px; }
